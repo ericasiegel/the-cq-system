@@ -1,5 +1,9 @@
 // import the Mongoose models
 const { User, Thought } = require('../models');
+// import the authentication error from the Apollo server
+const { AuthenticationError } = require('apollo-server-express');
+// import the signToken function
+const { signToken } = require('../utils/auth');
 
 
 const resolvers = {
@@ -36,6 +40,33 @@ const resolvers = {
         // destructure the _id arguement value and place it into our .findOne() method to look up a single thought by its _id
         thought: async (parent, { _id }) => {
             return Thought.findOne({ _id });
+        }
+    },
+    Mutation: {
+        // a new user is created for whatever is passed in as the args
+        addUser: async (parent, args) => {
+            const user = await User.create(args);
+            const token = signToken(user);
+
+            return { token, user };
+        },
+        login: async(parent, { email, password }) => {
+            const user = await User.findOne({ email });
+
+            // verify if the username is correct
+            if (!user) {
+                throw new AuthenticationError('Incorrect Credentials');
+            }
+            // verify if the password is correct
+            const correctPw = await user.isCorrectPassword(password);
+
+            if (!correctPw) {
+                throw new AuthenticationError('Incorrect Credentials');
+            }
+
+            const token = signToken(user);
+
+            return { token, user };
         }
     }
 };
